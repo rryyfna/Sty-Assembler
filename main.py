@@ -1,8 +1,11 @@
 import os
 import mido
-import tkinter as tk
-from tkinter import filedialog, messagebox
-import customtkinter as ctk
+import sys
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
+                             QPushButton, QLabel, QLineEdit, QComboBox,
+                             QCheckBox, QFrame, QFileDialog, QMessageBox, QGridLayout)
+from PyQt6.QtGui import QFont, QColor
+from PyQt6.QtCore import Qt
 
 # ==========================================
 # 1. LOGIKA INTI MIDI, CASM, & SCALING
@@ -237,164 +240,283 @@ def process_assembly(template_path, custom_path, output_path, markers_to_replace
 # 3. ANTARMUKA PENGGUNA (UI CTK DARK MODE)
 # ==========================================
 
-class StyleAssemblerApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("rryystudios @rryynaufal")
-        self.root.geometry("1000x700")
-        
-        # Pengaturan Tema CTK
-        ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("green")
+class StyleAssemblerApp(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("rryystudios @rryynaufal")
+        self.resize(1000, 700)
         
         self.BG_MAIN = "#121212"
         self.BG_PANEL = "#1E1E1E"
         self.BG_MENU = "#080808"
         self.FG_GREEN = "#39FF14"
         self.ACTIVE_GREEN = "#1FA31F" 
-        self.BTN_RADIUS = 8
-        self.INPUT_HEIGHT = 35 # Tinggi elemen input (Entry, Button Browse, Combobox) disamakan
+        self.INPUT_HEIGHT = 35
         
-        # Variabel UI
-        self.template_var = tk.StringVar()
-        self.custom_var = tk.StringVar()
-        self.output_var = tk.StringVar()
-        self.ratio_var = tk.StringVar(value="Auto (Hitung Otomatis)")
-        self.marker_var = tk.StringVar(value="Ending A, Ending B")
-        self.inject_reset_var = tk.BooleanVar(value=True)
-        self.reset_hb_var = tk.BooleanVar(value=True) 
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {self.BG_MAIN}; }}
+            QLabel {{ color: white; }}
+            QLineEdit {{ 
+                background-color: #181818; 
+                border: 1px solid #333; 
+                color: white; 
+                padding: 5px;
+                border-radius: 4px;
+            }}
+            QComboBox {{
+                background-color: #181818;
+                border: 1px solid #333;
+                color: white;
+                padding: 5px;
+                border-radius: 4px;
+            }}
+            QComboBox::drop-down {{ border: 0px; }}
+            QCheckBox {{ color: white; }}
+            QCheckBox::indicator:checked {{
+                background-color: {self.ACTIVE_GREEN};
+                border: 1px solid {self.ACTIVE_GREEN};
+            }}
+            QPushButton {{
+                color: white;
+                border-radius: 4px;
+                padding: 5px;
+            }}
+        """)
         
         self.create_widgets()
 
     def create_widgets(self):
-        # --- TOP HEADER BAR ---
-        top_frame = ctk.CTkFrame(self.root, fg_color=self.BG_PANEL, height=60, corner_radius=0)
-        top_frame.pack(fill="x", side="top")
-        top_frame.pack_propagate(False)
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
         
-        ctk.CTkLabel(top_frame, text="rryystudios", font=ctk.CTkFont(size=18, weight="bold"), text_color="white").pack(side="left", padx=20)
-
-        btn_save = ctk.CTkButton(top_frame, text="ASSEMBLY", fg_color="#228B22", hover_color="#32CD32", 
-                                 font=ctk.CTkFont(weight="bold"), corner_radius=self.BTN_RADIUS, height=35, command=self.run_assembly)
-        btn_save.pack(side="right", padx=22, pady=12)
+        # --- TOP HEADER BAR ---
+        top_frame = QFrame()
+        top_frame.setFixedHeight(60)
+        top_frame.setStyleSheet(f"background-color: {self.BG_PANEL};")
+        top_layout = QHBoxLayout(top_frame)
+        top_layout.setContentsMargins(20, 0, 20, 0)
+        
+        title_label = QLabel("rryystudios")
+        title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        top_layout.addWidget(title_label)
+        
+        top_layout.addStretch()
+        
+        btn_save = QPushButton("ASSEMBLY")
+        btn_save.setFixedSize(120, 35)
+        btn_save.setFont(QFont("Arial", 10, QFont.Weight.Bold))
+        btn_save.setStyleSheet(f"""
+            QPushButton {{ background-color: #228B22; border-radius: 8px; }}
+            QPushButton:hover {{ background-color: #32CD32; }}
+        """)
+        btn_save.clicked.connect(self.run_assembly)
+        top_layout.addWidget(btn_save)
+        
+        main_layout.addWidget(top_frame)
 
         # --- BODY CONTAINERS ---
-        body_frame = ctk.CTkFrame(self.root, fg_color=self.BG_MAIN, corner_radius=0)
-        body_frame.pack(fill="both", expand=True)
-
-        # --- LEFT MENU (Dummy Visual ala Yamaha PSR SX) ---
-        left_menu = ctk.CTkFrame(body_frame, fg_color=self.BG_MENU, width=180, corner_radius=0)
-        left_menu.pack(side="left", fill="y")
-        left_menu.pack_propagate(False)
+        body_frame = QFrame()
+        body_layout = QHBoxLayout(body_frame)
+        body_layout.setContentsMargins(0, 0, 0, 0)
+        body_layout.setSpacing(0)
         
-        menus = ["    Basic", "    Rec Channel", "    Assembly", "    Channel Edit", "    SFF Edit"]
+        # --- LEFT MENU ---
+        left_menu = QFrame()
+        left_menu.setFixedWidth(180)
+        left_menu.setStyleSheet(f"background-color: {self.BG_MENU};")
+        left_layout = QVBoxLayout(left_menu)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(1)
+        
+        menus = ["Basic", "Rec Channel", "Assembly", "Channel Edit", "SFF Edit"]
         for m in menus:
-            is_active = (m == "    Assembly")
+            is_active = (m == "Assembly")
             bg_color = self.ACTIVE_GREEN if is_active else self.BG_MENU
             text_color = "white" if is_active else "#666666"
             hover_bg = self.ACTIVE_GREEN if is_active else "#1A1A1A"
             
-            btn = ctk.CTkButton(left_menu, text=f"   {m}", fg_color=bg_color, text_color=text_color, hover_color=hover_bg,
-                                font=ctk.CTkFont(size=16, weight="bold"), corner_radius=0, anchor="w", height=55)
-            btn.pack(fill="x")
-            
-            if not is_active:
-                ctk.CTkFrame(left_menu, fg_color="#1A1A1A", height=1).pack(fill="x")
+            btn = QPushButton(f"    {m}")
+            btn.setFixedHeight(55)
+            btn.setFont(QFont("Arial", 11, QFont.Weight.Bold))
+            btn.setStyleSheet(f"""
+                QPushButton {{ 
+                    background-color: {bg_color}; 
+                    color: {text_color}; 
+                    text-align: left;
+                    border: none;
+                }}
+                QPushButton:hover {{ background-color: {hover_bg}; }}
+            """)
+            left_layout.addWidget(btn)
+        
+        left_layout.addStretch()
+        body_layout.addWidget(left_menu)
 
         # --- RIGHT MAIN AREA ---
-        right_area = ctk.CTkFrame(body_frame, fg_color=self.BG_MAIN, corner_radius=0)
-        right_area.pack(side="left", fill="both", expand=True, padx=30, pady=20)
-
+        right_area = QFrame()
+        right_area.setStyleSheet(f"background-color: {self.BG_MAIN};")
+        right_layout = QVBoxLayout(right_area)
+        right_layout.setContentsMargins(30, 20, 30, 20)
+        right_layout.setSpacing(20)
+        
         # --- SECTION: FILE MANAGEMENT ---
-        ctk.CTkLabel(right_area, text="File Management", font=ctk.CTkFont(size=18, weight="bold"), text_color="white").pack(anchor="w", pady=(0, 15))
+        lbl_file = QLabel("File Management")
+        lbl_file.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        right_layout.addWidget(lbl_file)
         
-        file_frame = ctk.CTkFrame(right_area, fg_color=self.BG_PANEL, corner_radius=self.BTN_RADIUS)
-        file_frame.pack(fill="x", pady=(0, 20))
+        file_frame = QFrame()
+        file_frame.setStyleSheet(f"background-color: {self.BG_PANEL}; border-radius: 8px;")
+        file_layout = QGridLayout(file_frame)
+        file_layout.setContentsMargins(15, 15, 15, 15)
+        file_layout.setSpacing(10)
         
-        # Grid konfigurasi untuk form
-        file_frame.grid_columnconfigure(1, weight=1)
-
-        # 1. Template
-        ctk.CTkLabel(file_frame, text="Template (.sty):", font=ctk.CTkFont(size=14)).grid(row=0, column=0, padx=15, pady=(15, 10), sticky="w")
-        ctk.CTkEntry(file_frame, textvariable=self.template_var, state="readonly", height=self.INPUT_HEIGHT, fg_color="#181818", border_color="#333").grid(row=0, column=1, padx=10, pady=(15, 10), sticky="we")
-        ctk.CTkButton(file_frame, text="Browse", width=80, height=self.INPUT_HEIGHT, fg_color="#333", hover_color="#555", corner_radius=self.BTN_RADIUS, command=self.browse_template).grid(row=0, column=2, padx=15, pady=(15, 10))
-
-        # 2. Custom MIDI
-        ctk.CTkLabel(file_frame, text="MIDI Baru (.mid):", font=ctk.CTkFont(size=14)).grid(row=1, column=0, padx=15, pady=10, sticky="w")
-        ctk.CTkEntry(file_frame, textvariable=self.custom_var, state="readonly", height=self.INPUT_HEIGHT, fg_color="#181818", border_color="#333").grid(row=1, column=1, padx=10, pady=10, sticky="we")
-        ctk.CTkButton(file_frame, text="Browse", width=80, height=self.INPUT_HEIGHT, fg_color="#333", hover_color="#555", corner_radius=self.BTN_RADIUS, command=self.browse_custom).grid(row=1, column=2, padx=15, pady=10)
-
-        # 3. Output
-        ctk.CTkLabel(file_frame, text="Simpan (.sty):", font=ctk.CTkFont(size=14)).grid(row=2, column=0, padx=15, pady=(10, 15), sticky="w")
-        ctk.CTkEntry(file_frame, textvariable=self.output_var, state="readonly", height=self.INPUT_HEIGHT, fg_color="#181818", border_color="#333").grid(row=2, column=1, padx=10, pady=(10, 15), sticky="we")
-        ctk.CTkButton(file_frame, text="Browse", width=80, height=self.INPUT_HEIGHT, fg_color="#333", hover_color="#555", corner_radius=self.BTN_RADIUS, command=self.browse_output).grid(row=2, column=2, padx=15, pady=(10, 15))
-
+        # Template
+        lbl_temp = QLabel("Template (.sty):")
+        lbl_temp.setFont(QFont("Arial", 11))
+        self.template_input = QLineEdit()
+        self.template_input.setFixedHeight(self.INPUT_HEIGHT)
+        self.template_input.setReadOnly(True)
+        btn_temp = QPushButton("Browse")
+        btn_temp.setFixedSize(80, self.INPUT_HEIGHT)
+        btn_temp.setStyleSheet("QPushButton { background-color: #333; } QPushButton:hover { background-color: #555; }")
+        btn_temp.clicked.connect(self.browse_template)
+        
+        file_layout.addWidget(lbl_temp, 0, 0)
+        file_layout.addWidget(self.template_input, 0, 1)
+        file_layout.addWidget(btn_temp, 0, 2)
+        
+        # Custom MIDI
+        lbl_cust = QLabel("MIDI Baru (.mid):")
+        lbl_cust.setFont(QFont("Arial", 11))
+        self.custom_input = QLineEdit()
+        self.custom_input.setFixedHeight(self.INPUT_HEIGHT)
+        self.custom_input.setReadOnly(True)
+        btn_cust = QPushButton("Browse")
+        btn_cust.setFixedSize(80, self.INPUT_HEIGHT)
+        btn_cust.setStyleSheet("QPushButton { background-color: #333; } QPushButton:hover { background-color: #555; }")
+        btn_cust.clicked.connect(self.browse_custom)
+        
+        file_layout.addWidget(lbl_cust, 1, 0)
+        file_layout.addWidget(self.custom_input, 1, 1)
+        file_layout.addWidget(btn_cust, 1, 2)
+        
+        # Output
+        lbl_out = QLabel("Simpan (.sty):")
+        lbl_out.setFont(QFont("Arial", 11))
+        self.output_input = QLineEdit()
+        self.output_input.setFixedHeight(self.INPUT_HEIGHT)
+        self.output_input.setReadOnly(True)
+        btn_out = QPushButton("Browse")
+        btn_out.setFixedSize(80, self.INPUT_HEIGHT)
+        btn_out.setStyleSheet("QPushButton { background-color: #333; } QPushButton:hover { background-color: #555; }")
+        btn_out.clicked.connect(self.browse_output)
+        
+        file_layout.addWidget(lbl_out, 2, 0)
+        file_layout.addWidget(self.output_input, 2, 1)
+        file_layout.addWidget(btn_out, 2, 2)
+        
+        file_layout.setColumnStretch(1, 1)
+        right_layout.addWidget(file_frame)
 
         # --- SECTION: KONFIGURASI & FILTER ---
-        ctk.CTkLabel(right_area, text="Konfigurasi & Filter MIDI", font=ctk.CTkFont(size=18, weight="bold"), text_color="white").pack(anchor="w", pady=(10, 15))
+        lbl_conf = QLabel("Konfigurasi & Filter MIDI")
+        lbl_conf.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        right_layout.addWidget(lbl_conf)
         
-        config_frame = ctk.CTkFrame(right_area, fg_color=self.BG_PANEL, corner_radius=self.BTN_RADIUS)
-        config_frame.pack(fill="x")
-        config_frame.grid_columnconfigure(1, weight=1)
-
+        config_frame = QFrame()
+        config_frame.setStyleSheet(f"background-color: {self.BG_PANEL}; border-radius: 8px;")
+        config_layout = QGridLayout(config_frame)
+        config_layout.setContentsMargins(15, 15, 15, 15)
+        config_layout.setSpacing(10)
+        
         # Target Marker
-        ctk.CTkLabel(config_frame, text="Target Marker:", font=ctk.CTkFont(size=14)).grid(row=0, column=0, padx=15, pady=(15, 10), sticky="w")
-        ctk.CTkEntry(config_frame, textvariable=self.marker_var, height=self.INPUT_HEIGHT, fg_color="#181818", border_color="#333").grid(row=0, column=1, padx=10, pady=(15, 10), sticky="we")
-
+        lbl_marker = QLabel("Target Marker:")
+        lbl_marker.setFont(QFont("Arial", 11))
+        self.marker_input = QLineEdit("Ending A, Ending B")
+        self.marker_input.setFixedHeight(self.INPUT_HEIGHT)
+        config_layout.addWidget(lbl_marker, 0, 0)
+        config_layout.addWidget(self.marker_input, 0, 1)
+        
         # Rasio Resolusi
-        ctk.CTkLabel(config_frame, text="Rasio Resolusi:", font=ctk.CTkFont(size=14)).grid(row=1, column=0, padx=15, pady=10, sticky="w")
-        combo_ratio = ctk.CTkComboBox(config_frame, variable=self.ratio_var, state="readonly", height=self.INPUT_HEIGHT,
-                                      values=["Auto (Hitung Otomatis)", "1.0 (Tanpa Skala / Asli)", "2.0 (Kali 2)", "0.5 (Bagi 2)"],
-                                      fg_color="#181818", border_color="#333", button_color="#333", button_hover_color="#555")
-        combo_ratio.grid(row=1, column=1, padx=10, pady=10, sticky="we")
-
+        lbl_ratio = QLabel("Rasio Resolusi:")
+        lbl_ratio.setFont(QFont("Arial", 11))
+        self.ratio_combo = QComboBox()
+        self.ratio_combo.setFixedHeight(self.INPUT_HEIGHT)
+        self.ratio_combo.addItems(["Auto (Hitung Otomatis)", "1.0 (Tanpa Skala / Asli)", "2.0 (Kali 2)", "0.5 (Bagi 2)"])
+        config_layout.addWidget(lbl_ratio, 1, 0)
+        config_layout.addWidget(self.ratio_combo, 1, 1)
+        
         # Checkboxes
-        ctk.CTkCheckBox(config_frame, text="Reset Pitchbend & Modulasi (0)", variable=self.inject_reset_var, fg_color=self.ACTIVE_GREEN, hover_color=self.FG_GREEN).grid(row=2, column=0, columnspan=2, padx=15, pady=(10, 5), sticky="w")
-        ctk.CTkCheckBox(config_frame, text="Harmonic & Brightness Bass 64", variable=self.reset_hb_var, fg_color=self.ACTIVE_GREEN, hover_color=self.FG_GREEN).grid(row=3, column=0, columnspan=2, padx=15, pady=(5, 15), sticky="w")
-
+        self.inject_reset_cb = QCheckBox("Reset Pitchbend & Modulasi (0)")
+        self.inject_reset_cb.setFont(QFont("Arial", 10))
+        self.inject_reset_cb.setChecked(True)
+        config_layout.addWidget(self.inject_reset_cb, 2, 0, 1, 2)
+        
+        self.reset_hb_cb = QCheckBox("Harmonic & Brightness Bass 64")
+        self.reset_hb_cb.setFont(QFont("Arial", 10))
+        self.reset_hb_cb.setChecked(True)
+        config_layout.addWidget(self.reset_hb_cb, 3, 0, 1, 2)
+        
+        config_layout.setColumnStretch(1, 1)
+        right_layout.addWidget(config_frame)
+        
         # --- STATUS LABEL ---
-        self.status_label = ctk.CTkLabel(right_area, text="Status: Siap memproses...", font=ctk.CTkFont(size=14, slant="italic"), text_color="#AAAAAA")
-        self.status_label.pack(anchor="w", pady=20)
+        right_layout.addStretch()
+        self.status_label = QLabel("Status: Siap memproses...")
+        font = QFont("Arial", 11)
+        font.setItalic(True)
+        self.status_label.setFont(font)
+        self.status_label.setStyleSheet("color: #AAAAAA;")
+        right_layout.addWidget(self.status_label)
 
+        body_layout.addWidget(right_area)
+        main_layout.addWidget(body_frame)
 
     def browse_template(self):
-        filename = filedialog.askopenfilename(filetypes=[("Yamaha Style", "*.sty")])
-        if filename: self.template_var.set(filename)
+        filename, _ = QFileDialog.getOpenFileName(self, "Pilih Template", "", "Yamaha Style (*.sty)")
+        if filename: self.template_input.setText(filename)
 
     def browse_custom(self):
-        filename = filedialog.askopenfilename(filetypes=[("MIDI Files", "*.mid"), ("Yamaha Style", "*.sty")])
-        if filename: self.custom_var.set(filename)
+        filename, _ = QFileDialog.getOpenFileName(self, "Pilih MIDI Baru", "", "MIDI/Style (*.mid *.sty)")
+        if filename: self.custom_input.setText(filename)
 
     def browse_output(self):
-        filename = filedialog.asksaveasfilename(defaultextension=".sty", filetypes=[("Yamaha Style", "*.sty")])
-        if filename: self.output_var.set(filename)
+        filename, _ = QFileDialog.getSaveFileName(self, "Simpan File", "", "Yamaha Style (*.sty)")
+        if filename: self.output_input.setText(filename)
 
     def run_assembly(self):
-        template = self.template_var.get()
-        custom = self.custom_var.get()
-        output = self.output_var.get()
-        markers = [m.strip() for m in self.marker_var.get().split(",")]
-        ratio_mode = self.ratio_var.get()
-        inject_reset = self.inject_reset_var.get()
-        reset_hb = self.reset_hb_var.get() 
+        template = self.template_input.text()
+        custom = self.custom_input.text()
+        output = self.output_input.text()
+        markers = [m.strip() for m in self.marker_input.text().split(",")]
+        ratio_mode = self.ratio_combo.currentText()
+        inject_reset = self.inject_reset_cb.isChecked()
+        reset_hb = self.reset_hb_cb.isChecked()
 
         if not template or not custom or not output:
-            messagebox.showerror("Error", "Harap isi semua kolom file!")
+            QMessageBox.critical(self, "Error", "Harap isi semua kolom file!")
             return
 
-        self.status_label.configure(text="Status: Memproses assembly dan filter...", text_color="#f39c12")
-        self.root.update()
+        self.status_label.setText("Status: Memproses assembly dan filter...")
+        self.status_label.setStyleSheet("color: #f39c12;")
+        QApplication.processEvents()
 
         success, msg = process_assembly(template, custom, output, markers, ratio_mode, inject_reset, reset_hb)
         
         if success:
-            self.status_label.configure(text=f"Status: {msg}", text_color=self.FG_GREEN)
-            messagebox.showinfo("Berhasil", f"File berhasil disimpan di:\n{output}")
+            self.status_label.setText(f"Status: {msg}")
+            self.status_label.setStyleSheet(f"color: {self.FG_GREEN};")
+            QMessageBox.information(self, "Berhasil", f"File berhasil disimpan di:\n{output}")
         else:
-            self.status_label.configure(text="Status: Gagal memproses file", text_color="#c0392b")
-            messagebox.showerror("Gagal", f"Terjadi Error:\n{msg}")
+            self.status_label.setText("Status: Gagal memproses file")
+            self.status_label.setStyleSheet("color: #c0392b;")
+            QMessageBox.critical(self, "Gagal", f"Terjadi Error:\n{msg}")
 
 if __name__ == "__main__":
-    root = ctk.CTk()
-    app = StyleAssemblerApp(root)
-    root.mainloop()
+    app = QApplication(sys.argv)
+    window = StyleAssemblerApp()
+    window.show()
+    sys.exit(app.exec())
