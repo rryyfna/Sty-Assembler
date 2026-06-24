@@ -1,0 +1,5 @@
+﻿__pycache__/
+*.pyc
+*.mid
+*.sty
+.DS_Store
